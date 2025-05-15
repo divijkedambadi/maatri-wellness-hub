@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { authService } from "@/services/api";
 
 interface AuthFormProps {
   mode: "login" | "register";
@@ -12,6 +13,8 @@ interface AuthFormProps {
 
 const AuthForm = ({ mode }: AuthFormProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -28,17 +31,38 @@ const AuthForm = ({ mode }: AuthFormProps) => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    // In a real application, we would call the backend API here
-    // For demonstration purposes, we'll just show a toast
-    toast({
-      title: mode === "login" ? "Login attempted" : "Registration attempted",
-      description: "This would connect to your Spring Boot backend in a real application.",
-    });
-    
-    console.log("Form data:", formData);
+    try {
+      if (mode === "login") {
+        await authService.login(formData.email, formData.password);
+        toast({
+          title: "Login successful",
+          description: "Welcome back to Maatri!",
+        });
+        navigate("/dashboard");
+      } else {
+        await authService.register(formData);
+        toast({
+          title: "Registration successful",
+          description: "Welcome to Maatri!",
+        });
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Auth error:", error);
+      toast({
+        title: "Error",
+        description: mode === "login" 
+          ? "Failed to log in. Please check your credentials." 
+          : "Failed to register. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -120,8 +144,12 @@ const AuthForm = ({ mode }: AuthFormProps) => {
           />
         </div>
         
-        <Button type="submit" className="btn-maatri w-full">
-          {mode === "login" ? "Continue" : "Register"}
+        <Button type="submit" className="btn-maatri w-full" disabled={isLoading}>
+          {isLoading ? (
+            <span>Please wait...</span>
+          ) : (
+            <span>{mode === "login" ? "Continue" : "Register"}</span>
+          )}
         </Button>
         
         {mode === "login" ? (
